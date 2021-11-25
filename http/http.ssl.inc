@@ -118,9 +118,9 @@ class provisionService_http_ssl extends provisionService_http_public {
   /**
    * Generate a self-signed certificate for that key.
    *
-   * Because we only generate certificates for sites we make
-   * some assumptions based on the uri, but this cert should
-   * REALLY be replaced by the admin as soon as possible.
+   * Because we only generate certificates for sites we make some assumptions
+   * based on the uri, but this cert may be replaced by the admin if they
+   * already have an existing certificate.
    */
   function generate_certificates($ssl_key) {
     $path = "{$this->server->ssld_path}/{$ssl_key}";
@@ -131,19 +131,21 @@ class provisionService_http_ssl extends provisionService_http_public {
       )), 0700);
 
     if (provision_file()->exists($path)->status()) {
-      $pass = 'pass';
-
+      drush_log(dt('generating 2048 bit RSA key in %path/', array('%path' => $path)));
       // generate a key
-      drush_shell_exec('openssl genrsa -passout pass:%s -des3 -out %s/openssl.key.orig 1024', $pass, $path);
+      drush_shell_exec('openssl genrsa -out %s/openssl.key 2048', $path)
+        || drush_set_error('SSL_KEY_GEN_FAIL', dt('failed to generate SSL key in %path', array('%path' => $path . '/openssl.key')));
 
-      // unsign it
-      drush_shell_exec('openssl rsa -passin pass:%s -in %s/openssl.key.orig -out %s/openssl.key', $pass, $path, $path);
+      // Generate the CSR to make the key certifiable by third parties
+      $ident = "/CN={$this->context->uri}/emailAddress=abuse@{$this->context->uri}";
+      drush_shell_exec("openssl req -new -subj '%s' -key %s/openssl.key -out %s/openssl.csr -batch", $ident, $path, $path)
+        || drush_log(dt('failed to generate signing request for certificate in %path', array('%path' => $path . '/openssl.csr')));
 
-      // Generate the CSR
-      $ident = "/C=us/CN={$this->context->uri}/OU={$this->context->uri}/emailAddress=admin@{$this->context->uri}";
-      drush_shell_exec("openssl req -new -subj '%s' -key %s/openssl.key -out %s/openssl.csr -batch", $ident, $path, $path);
-
-      drush_shell_exec("openssl x509 -req -days 365 -in %s/openssl.csr -signkey %s/openssl.key  -out %s/openssl.crt", $path, $path, $path);
+      // sign the certificate with itself, generating a self-signed
+      // certificate. this will make a SHA1 certificate by default in
+      // current OpenSSL.
+      drush_shell_exec("openssl x509 -req -days 365 -in %s/openssl.csr -signkey %s/openssl.key  -out %s/openssl.crt", $path, $path, $path)
+        || drush_set_error('SSL_CERT_GEN_FAIL', dt('failed to generate self-signed certificate in %path', array('%path' => $path . '/openssl.crt')));
     }
   }
 
@@ -298,15 +300,18 @@ class provisionConfig_http_ssl_site extends provisionConfig_http_site {
       // Copy the certificates to the server's ssl.d directory.
       provision_file()->copy(
         $this->data['ssl_cert_source'],
-        $this->data['ssl_cert']);
+        $this->data['ssl_cert'])
+        || drush_set_error('SSL_CERT_COPY_FAIL', dt('failed to copy SSL certificate in place'));
       provision_file()->copy(
         $this->data['ssl_cert_key_source'],
-        $this->data['ssl_cert_key']);
+        $this->data['ssl_cert_key'])
+        || drush_set_error('SSL_KEY_COPY_FAIL', dt('failed to copy SSL key in place'));
       // Copy the chain certificate, if it is set.
       if (!empty($this->data['ssl_chain_cert_source'])) {
 	      provision_file()->copy(
           $this->data['ssl_chain_cert_source'],
-          $this->data['ssl_chain_cert']);
+          $this->data['ssl_chain_cert'])
+          || drush_set_error('SSL_CHAIN_COPY_FAIL', dt('failed to copy SSL certficate chain in place'));
       }
       // Sync the key directory to the remote server.
       $this->data['server']->sync($path, array(

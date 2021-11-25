@@ -1,3 +1,24 @@
+aegir-provision (1.12) testing; urgency=low
+
+  * modal frame was updated to cover for SA-CONTRIB-2014-012 (#2191827)
+  * the jQuery download URL was fixed
+
+ -- Antoine Beaupré <anarcat@debian.org>  Wed, 23 Apr 2014 14:04:20 -0400
+
+aegir-provision (1.11) testing; urgency=high
+
+  * fix mild security issue with login-reset links (#1220062)
+  * security fix: SA-CORE-2013-003, files/ protection (#2141799)
+
+ -- Antoine Beaupré <anarcat@debian.org>  Tue, 26 Nov 2013 11:31:55 -0500
+
+aegir-provision (1.10) testing; urgency=high
+
+  * new release: Security fixes for a moderately critical vulnerability found in 
+    the front-end, also various bug fixes since release 1.9.
+
+ -- Christopher Gervais <chris@ergonlogic.com>  Wed, 17 Jul 2013 16:33:37 -0400
+
 aegir-provision (1.9) testing; urgency=high
 
   * new release: Security fixes for less-critical vulnerabilities found in 

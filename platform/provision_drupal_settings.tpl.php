@@ -13,6 +13,7 @@
  */
 
 <?php if ($this->cloaked): ?>
+if (isset($_SERVER['db_name'])) {
   /**
    * The database credentials are stored in the Apache vhost config
    * of the associated site with SetEnv parameters.
@@ -31,6 +32,7 @@
     'port' => $_SERVER['db_port'],
   );
   $db_url['default'] = $_SERVER['db_type'] . '://' . $_SERVER['db_user'] . ':' . $_SERVER['db_passwd'] . '@' . $_SERVER['db_host'] . ':' . $_SERVER['db_port'] . '/' . $_SERVER['db_name'];
+}
 
   /**
    * Now that we used the credentials from the apache environment, we
@@ -128,7 +130,10 @@
   $conf['aegir_api'] = <?php print !$this->backup_in_progress ? $this->api_version : 0 ?>;
 
   <?php if (!$this->site_enabled) : ?>
+    // This is for Drupal 6 and below.
     $conf['site_offline'] = 1;
+    // And this is for Drupal 7 and above.
+    $conf['maintenance_mode'] = 1;
   <?php endif ?>
 
 <?php print $extra_config; ?>
